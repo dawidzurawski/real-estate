@@ -6,6 +6,7 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Image, ScrollView, Text, View } from "react-native";
 import { useSignUp } from "@clerk/clerk-expo";
+import { ReactNativeModal } from "react-native-modal";
 
 const SignUp = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -17,7 +18,7 @@ const SignUp = () => {
   });
 
   const [verification, setVerification] = useState({
-    state: "default",
+    state: "success",
     error: "",
     code: "",
   });
@@ -46,25 +47,30 @@ const SignUp = () => {
   };
 
   const onPressVerify = async () => {
-    if (!isLoaded) {
-      return;
-    }
+    if (!isLoaded) return;
 
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code,
+        code: verification.code,
       });
 
       if (completeSignUp.status === "complete") {
+        //TODOL Create a database user!
         await setActive({ session: completeSignUp.createdSessionId });
-        router.replace("/");
+        setVerification({ ...verification, state: "success" });
       } else {
-        console.error(JSON.stringify(completeSignUp, null, 2));
+        setVerification({
+          ...verification,
+          error: "Verification failed",
+          state: "failed",
+        });
       }
     } catch (err: any) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
-      console.error(JSON.stringify(err, null, 2));
+      setVerification({
+        ...verification,
+        error: err.errors[0].longMessage,
+        state: "failed",
+      });
     }
   };
 
@@ -118,6 +124,15 @@ const SignUp = () => {
             <Text className="text-primary-500">Log In</Text>
           </Link>
         </View>
+
+        <ReactNativeModal isVisible={verification.state === "success"}>
+          <View className="bg-white px-7 py-9 rounded-2xl min-h-[300px]">
+            <Image
+              source={images.check}
+              className="w-[110px] h-[110px] mx-aut my-5"
+            />
+          </View>
+        </ReactNativeModal>
       </View>
     </ScrollView>
   );
